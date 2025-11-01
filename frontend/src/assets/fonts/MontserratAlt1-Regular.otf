@@ -1,0 +1,5 @@
+PLEASE REPLACE THIS FILE:
+Copy your actual MontserratAlt1-Regular.otf font file to this exact location:
+e:\projects\LMS_2\frontend\src\assets\fonts\MontserratAlt1-Regular.otf
+
+The font loading system is now properly configured and will automatically use your font once you copy it here.

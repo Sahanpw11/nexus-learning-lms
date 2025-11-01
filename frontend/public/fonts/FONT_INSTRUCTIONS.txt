@@ -1,0 +1,5 @@
+Please place the MontserratAlt1-Regular.otf font file in this directory.
+
+The font should be named exactly: MontserratAlt1-Regular.otf
+
+Once placed, the application will automatically load and use this font for the branding elements.

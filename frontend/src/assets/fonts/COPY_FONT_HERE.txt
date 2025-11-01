@@ -1,0 +1,7 @@
+Please copy the MontserratAlt1-Regular.otf file from:
+e:\projects\LMS_2\frontend\public\fonts\MontserratAlt1-Regular.otf
+
+To this directory:
+e:\projects\LMS_2\frontend\src\assets\fonts\MontserratAlt1-Regular.otf
+
+This is needed because React's CSS loader can only import fonts from the src directory, not the public directory.

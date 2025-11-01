@@ -1,0 +1,630 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* CSS Custom Properties for Primary Orange */
+:root {
+  --primary-orange: #ff6b35;
+  --primary-orange-light: #ff8a5c;
+  --primary-orange-rgb: 255, 107, 53;
+}
+
+/* CSS Custom Properties for Orange Theme */
+:root {
+  --primary-orange: #ff6b35;
+  --primary-orange-light: #ff8a5c;
+  --primary-orange-dark: #e55a2b;
+}
+
+/* Load font from public folder via HTML link - more reliable */
+@font-face {
+  font-family: 'MontserratAlt1';
+  src: url('../public/fonts/MontserratAlt1-Regular.otf') format('opentype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* AI Canvas Design System - Ultra Modern & Minimalistic */
+
+/* Custom MontserratAlt1 font is loaded via src/fonts.js */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  font-size: 16px;
+}
+
+body {
+  margin: 0;
+  font-family: 'SF Pro Display', 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  font-weight: 400;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background: #000000;
+  color: #ffffff;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Typography Scale - AI Canvas Style */
+.text-display {
+  font-size: clamp(2.5rem, 5vw, 4rem);
+  font-weight: 200;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+
+.text-title {
+  font-size: clamp(1.5rem, 3vw, 2.25rem);
+  font-weight: 300;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+}
+
+.text-heading {
+  font-size: 1.25rem;
+  font-weight: 500;
+  line-height: 1.3;
+}
+
+.text-body {
+  font-size: 0.875rem;
+  font-weight: 400;
+  line-height: 1.6;
+}
+
+.text-caption {
+  font-size: 0.75rem;
+  font-weight: 400;
+  line-height: 1.4;
+  opacity: 0.7;
+}
+
+.text-micro {
+  font-size: 0.6875rem;
+  font-weight: 500;
+  line-height: 1.2;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+/* Font Family Utilities */
+.font-sf {
+  font-family: 'SF Pro Display', 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif !important;
+}
+
+/* MontserratAlt1 font only for branding elements */
+.font-montserrat {
+  font-family: 'MontserratAlt1', 'SF Pro Display', 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif !important;
+}
+
+/* Background Patterns */
+.bg-grid-pattern {
+  background-image: 
+    linear-gradient(rgba(255, 107, 53, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 107, 53, 0.03) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+.bg-gradient-radial {
+  background: radial-gradient(ellipse at center, rgba(255, 107, 53, 0.1) 0%, transparent 70%);
+}
+
+/* Glass Morphism - Premium Edition */
+.glass-card {
+  background: rgba(255, 255, 255, 0.8); /* Increased opacity for better visibility */
+  -webkit-backdrop-filter: blur(24px);
+  backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: 
+    0 4px 32px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  color: #333; /* Ensure text is dark */
+  margin-bottom: 1.5rem; /* Add bottom margin to prevent scrollbar overflow issues */
+}
+
+.glass-input {
+  background: rgba(255, 255, 255, 0.03);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.glass-input:focus {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 107, 53, 0.4);
+  box-shadow: 
+    0 0 0 1px rgba(255, 107, 53, 0.2),
+    0 4px 24px rgba(255, 107, 53, 0.15);
+}
+
+.glass-input:hover {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+/* Button System */
+.btn-primary {
+  background: linear-gradient(135deg, #ff6b35 0%, #e55a2b 100%) !important;
+  color: white !important;
+  border: none !important;
+  box-shadow: 
+    0 4px 16px rgba(255, 107, 53, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-primary::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left 0.5s ease;
+}
+
+.btn-primary:hover::before {
+  left: 100%;
+}
+
+.btn-primary:hover {
+  transform: translateY(-1px) !important;
+  box-shadow: 
+    0 6px 24px rgba(255, 107, 53, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3) !important;
+}
+
+.btn-secondary {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  color: #333 !important; /* Adding dark text color for better visibility */
+}
+
+.btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.15);
+  transform: translateY(-1px);
+}
+
+/* Accessibility Improvements */
+
+/* Focus States for Better Keyboard Navigation */
+button:focus,
+input:focus,
+select:focus,
+textarea:focus,
+[role="button"]:focus {
+  outline: 2px solid #ff6b35 !important;
+  outline-offset: 2px !important;
+  box-shadow: 0 0 0 3px rgba(255, 107, 53, 0.2) !important;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .glass-card {
+    background: rgba(255, 255, 255, 0.95);
+    border: 2px solid rgba(0, 0, 0, 0.2);
+  }
+  
+  .btn-primary {
+    background: #e55a2b !important;
+    border: 2px solid #d14a1f !important;
+  }
+  
+  .btn-secondary {
+    background: rgba(255, 255, 255, 0.1);
+    border: 2px solid rgba(255, 255, 255, 0.3) !important;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  
+  .btn-primary::before {
+    display: none !important;
+  }
+}
+
+/* Screen reader only content */
+.sr-only {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+/* Skip link for keyboard navigation */
+.skip-link {
+  position: absolute;
+  top: -40px;
+  left: 6px;
+  background: #ff6b35;
+  color: white;
+  padding: 8px;
+  border-radius: 4px;
+  text-decoration: none;
+  z-index: 9999;
+  transition: top 0.3s;
+}
+
+.skip-link:focus {
+  top: 6px;
+}
+
+/* Enhanced button states */
+.btn-primary:disabled {
+  opacity: 0.6 !important;
+  cursor: not-allowed !important;
+  transform: none !important;
+}
+
+.btn-secondary:disabled {
+  opacity: 0.6 !important;
+  cursor: not-allowed !important;
+  transform: none !important;
+}
+
+/* Loading state */
+.loading {
+  opacity: 0.7;
+  pointer-events: none;
+  position: relative;
+}
+
+.loading::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 20px;
+  height: 20px;
+  margin: -10px 0 0 -10px;
+  border: 2px solid transparent;
+  border-top: 2px solid #ff6b35;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Animations */
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes fadeInScale {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.animate-slide-up {
+  animation: slideInUp 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.animate-slide-right {
+  animation: slideInRight 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.animate-fade-scale {
+  animation: fadeInScale 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.animate-pulse-subtle {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Toast Animations */
+@keyframes slide-in-right {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes toast-progress {
+  from {
+    width: 100%;
+  }
+  to {
+    width: 0%;
+  }
+}
+
+.animate-slide-in-right {
+  animation: slide-in-right 0.3s ease-out;
+}
+
+.animate-toast-progress {
+  animation: toast-progress linear;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 107, 53, 0.4);
+  border-radius: 2px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 107, 53, 0.6);
+}
+
+/* Focus and Selection */
+:focus {
+  outline: none;
+}
+
+::selection {
+  background: rgba(255, 107, 53, 0.2);
+  color: white;
+}
+
+/* Utility Classes */
+.text-gradient {
+  background: linear-gradient(135deg, #ff6b35 0%, #e55a2b 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.border-gradient {
+  border-image: linear-gradient(135deg, #ff6b35 0%, #e55a2b 100%) 1;
+}
+
+.shadow-glow {
+  box-shadow: 0 0 24px rgba(255, 107, 53, 0.3);
+}
+
+.shadow-glow-strong {
+  box-shadow: 0 0 48px rgba(255, 107, 53, 0.5);
+}
+
+/* Layout Spacing */
+.container-ai {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+}
+
+.section-padding {
+  padding: 4rem 0;
+}
+
+@media (min-width: 768px) {
+  .section-padding {
+    padding: 6rem 0;
+  }
+}
+
+/* Custom Branding Styles */
+.brand-nexus {
+  font-family: 'MontserratAlt1', sans-serif !important;
+  font-size: 5.5rem; /* Increased from 3.5rem */
+  line-height: 1.1;
+  font-weight: 400; /* Using normal weight for MontserratAlt1 */
+  letter-spacing: -0.025em;
+}
+
+.brand-reactor-minds {
+  font-size: 1.25rem; /* Made larger as requested */
+  font-weight: 400;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-left: 0.55rem; /* Moved 2mm further to the right */
+}
+
+.brand-by {
+  font-family: 'SF Pro Display', 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+}
+
+.brand-reactor-minds-text {
+  font-family: 'MontserratAlt1', sans-serif !important;
+}
+
+.brand-reactor {
+  color: #4a5568; /* gray-600 */
+}
+
+.brand-minds {
+  color: #ff6b35; /* orange brand color */
+}
+
+.brand-mobile-nexus {
+  font-family: 'MontserratAlt1', sans-serif !important;
+  font-size: 2.25rem; /* Increased from 2rem */
+  line-height: 1.2;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+}
+
+.brand-mobile-reactor-minds {
+  font-size: 1rem; /* Made larger for mobile as well */
+  font-weight: 400;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+/* Footer branding */
+.footer-branding {
+  font-size: 0.875rem;
+  font-weight: 400;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.footer-normal {
+  font-family: 'SF Pro Display', 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+}
+
+.footer-montserrat {
+  font-family: 'MontserratAlt1', sans-serif !important;
+}
+
+/* Primary Orange Color System */
+.text-primary-orange {
+  color: #ff6b35 !important;
+}
+
+.text-primary-orange-light {
+  color: #ff8a5c !important;
+}
+
+.bg-primary-orange {
+  background: linear-gradient(135deg, #ff6b35 0%, #e55a2b 100%) !important;
+}
+
+.bg-primary-orange\/10 {
+  background-color: rgba(255, 107, 53, 0.1) !important;
+}
+
+.bg-primary-orange\/20 {
+  background-color: rgba(255, 107, 53, 0.2) !important;
+}
+
+.border-primary-orange {
+  border-color: #ff6b35 !important;
+}
+
+.border-primary-orange\/20 {
+  border-color: rgba(255, 107, 53, 0.2) !important;
+}
+
+.hover\:text-primary-orange:hover {
+  color: #ff6b35 !important;
+}
+
+.hover\:text-primary-orange-light:hover {
+  color: #ff8a5c !important;
+}
+
+.hover\:border-primary-orange:hover {
+  border-color: #ff6b35 !important;
+}
+
+/* Fix for invisible text on light theme */
+.text-text-white-muted {
+  color: #6b7280 !important; /* gray-500 for light theme visibility */
+}
+
+.text-text-white-muted:hover {
+  color: #374151 !important; /* gray-700 for better contrast on hover */
+}
+
+/* Additional Utility Classes for Better Coverage */
+@layer utilities {
+  .bg-primary-orange {
+    background: linear-gradient(135deg, var(--primary-orange) 0%, var(--primary-orange-dark) 100%) !important;
+  }
+  
+  .text-primary-orange {
+    color: var(--primary-orange) !important;
+  }
+  
+  .text-primary-orange-light {
+    color: var(--primary-orange-light) !important;
+  }
+  
+  .border-primary-orange {
+    border-color: var(--primary-orange) !important;
+  }
+  
+  /* Opacity variants */
+  .bg-primary-orange-10 {
+    background-color: rgba(255, 107, 53, 0.1) !important;
+  }
+  
+  .bg-primary-orange-20 {
+    background-color: rgba(255, 107, 53, 0.2) !important;
+  }
+  
+  .border-primary-orange-20 {
+    border-color: rgba(255, 107, 53, 0.2) !important;
+  }
+}
+
+/* Toast Container Responsiveness */
+@media (max-width: 640px) {
+  .toast-container {
+    left: 1rem;
+    right: 1rem;
+    top: 1rem;
+  }
+  
+  .toast-container .toast {
+    max-width: none;
+  }
+}
