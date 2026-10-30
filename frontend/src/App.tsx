@@ -6,6 +6,7 @@ import ErrorBoundary from './components/ErrorBoundary';
 import { ToastProvider } from './components/ToastProvider';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import Onboarding from './pages/Onboarding';
 import Dashboard from './pages/Dashboard';
 import Classes from './pages/Classes';
 import ClassDetail from './pages/ClassDetail';
@@ -27,6 +28,7 @@ import Analytics from './pages/Analytics';
 import ClassAnalyticsDetails from './pages/ClassAnalyticsDetails';
 import Settings from './pages/Settings';
 import Notifications from './pages/Notifications';
+import Chat from './pages/Chat';
 
 function App() {
   return (
@@ -39,6 +41,7 @@ function App() {
               {/* Public routes */}
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
+              <Route path="/onboarding" element={<Onboarding />} />
               
               {/* Protected routes */}
               <Route 
@@ -197,6 +200,14 @@ function App() {
                   <Settings />
                 </ProtectedRoute>
               } 
+            />
+            <Route
+              path="/chat"
+              element={
+                <ProtectedRoute>
+                  <Chat />
+                </ProtectedRoute>
+              }
             />
             <Route 
               path="/notifications" 

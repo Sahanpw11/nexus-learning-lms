@@ -8,6 +8,8 @@ const databaseUrl = process.env.TEST_DATABASE_URL ?? 'postgresql://postgres:test
 if (!/_test$/.test(new URL(databaseUrl).pathname)) throw new Error('TEST_DATABASE_URL must point at a *_test database');
 process.env.DATABASE_URL = databaseUrl;
 process.env.SECRET_KEY = 'api-test-secret';
+// Ignore any real Google client ID in backend/.env (dotenv never overrides values already set).
+process.env.GOOGLE_CLIENT_ID = '';
 // URL signing is local computation, so dummy R2 credentials are enough.
 Object.assign(process.env, {
   R2_ACCOUNT_ID: 'testaccount',
@@ -295,5 +297,78 @@ describe('vercel entry', () => {
     }
     assert.equal((await fetch(`http://127.0.0.1:${port}/apix`)).status, 404);
     await new Promise((resolve) => server.close(resolve));
+  });
+});
+
+describe('google sign-in', () => {
+  // Stand in for Google: the "credential" is just the identity's key here.
+  const identities: Record<string, { email: string; name: string }> = {
+    newcomer: { email: 'newcomer@gmail.com', name: 'New Comer' },
+    teacher: { email: 'teacher@test.dev', name: 'Existing Teacher' },
+  };
+  let restore: () => void;
+
+  before(async () => {
+    const { googleVerifier } = await import('../src/google.js');
+    const original = googleVerifier.verify;
+    googleVerifier.verify = async (credential) => {
+      if (!identities[credential]) throw new (await import('../src/errors.js')).HttpError(401, 'Invalid Google sign-in');
+      return identities[credential];
+    };
+    restore = () => {
+      googleVerifier.verify = original;
+    };
+  });
+  after(() => restore());
+
+  test('a new Google user is sent to onboarding, then chooses a role', async () => {
+    const first = await api.request('POST', '/auth/google', { body: { credential: 'newcomer' } });
+    assert.equal(first.status, 200);
+    assert.equal(first.body.status, 'onboarding');
+    assert.equal(first.body.email, 'newcomer@gmail.com');
+    assert.equal(first.body.full_name, 'New Comer');
+    // The onboarding token is not a login token.
+    assert.equal((await api.request('GET', '/auth/me', { token: first.body.onboarding_token })).status, 401);
+
+    const admin = await api.request('POST', '/auth/google/complete', {
+      body: { onboarding_token: first.body.onboarding_token, full_name: 'New Comer', role: 'admin' },
+    });
+    assert.equal(admin.status, 422);
+
+    const done = await api.request('POST', '/auth/google/complete', {
+      body: { onboarding_token: first.body.onboarding_token, full_name: 'Newcomer Renamed', role: 'teacher' },
+    });
+    assert.equal(done.status, 200, JSON.stringify(done.body));
+    const me = await api.request('GET', '/auth/me', { token: done.body.access_token });
+    assert.deepEqual([me.body.email, me.body.full_name, me.body.role], ['newcomer@gmail.com', 'Newcomer Renamed', 'teacher']);
+
+    // Completing twice cannot create a second account.
+    const again = await api.request('POST', '/auth/google/complete', {
+      body: { onboarding_token: first.body.onboarding_token, full_name: 'X', role: 'student' },
+    });
+    assert.equal(again.status, 400);
+  });
+
+  test('a known email signs straight in', async () => {
+    const res = await api.request('POST', '/auth/google', { body: { credential: 'teacher' } });
+    assert.equal(res.body.status, 'signed_in');
+    const me = await api.request('GET', '/auth/me', { token: res.body.access_token });
+    assert.equal(me.body.email, 'teacher@test.dev');
+  });
+
+  test('rejects bad Google credentials and forged or expired onboarding tokens', async () => {
+    assert.equal((await api.request('POST', '/auth/google', { body: { credential: 'forged' } })).status, 401);
+    const forged = jwt.sign({ purpose: 'onboarding', email: 'x@gmail.com' }, 'wrong-secret');
+    const expired = jwt.sign({ purpose: 'onboarding', email: 'x@gmail.com', exp: Math.floor(Date.now() / 1000) - 5 }, 'api-test-secret');
+    const loginToken = jwt.sign({ sub: 'x@gmail.com' }, 'api-test-secret');
+    for (const onboarding_token of [forged, expired, loginToken]) {
+      const res = await api.request('POST', '/auth/google/complete', { body: { onboarding_token, full_name: 'X', role: 'student' } });
+      assert.equal(res.status, 401, onboarding_token);
+    }
+  });
+
+  test('answers 503 when GOOGLE_CLIENT_ID is not configured', async () => {
+    restore();
+    assert.equal((await api.request('POST', '/auth/google', { body: { credential: 'anything' } })).status, 503);
   });
 });

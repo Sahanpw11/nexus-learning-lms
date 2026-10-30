@@ -1,7 +1,9 @@
 import axios from 'axios';
 import type {
   User, UserCreate, UserUpdate, Credentials, Token, LearningClass,
-  ClassCreate, ClassUpdate, Enrollment, EnrolledStudent,
+  ClassCreate, ClassUpdate, Enrollment, EnrolledStudent, GoogleSignInResult, GoogleOnboarding,
+  ChatContact, ChatMessage, CommunitySummary, ConversationDetail, ConversationStatus, ConversationSummary, MemberRole,
+  MessageReceipt, SendMessage, UploadUrl,
 } from '../../../shared/types';
 
 // Same-origin by default: Vercel serves the API at /api, and the dev server proxies /api to the backend.
@@ -32,7 +34,9 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    // A 401 from a sign-in attempt is a wrong password or Google token, not an expired session.
+    const isSignIn = ['/auth/login', '/auth/google', '/auth/google/complete'].includes(error.config?.url ?? '');
+    if (error.response?.status === 401 && !isSignIn) {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
       window.location.href = '/login';
@@ -45,6 +49,8 @@ export const authAPI = {
   login: (credentials: Credentials) => api.post<Token>('/auth/login', credentials),
   register: (userData: UserCreate) => api.post<User>('/auth/register', userData),
   getMe: () => api.get<User>('/auth/me'),
+  google: (credential: string) => api.post<GoogleSignInResult>('/auth/google', { credential }),
+  completeGoogleOnboarding: (data: GoogleOnboarding) => api.post<Token>('/auth/google/complete', data),
   createAdmin: (userData: UserCreate) => api.post<User>('/auth/create-admin', userData),
 };
 
@@ -68,3 +74,36 @@ export const classesAPI = {
 };
 
 export default api;
+
+export const filesAPI = {
+  uploadUrl: (file: { filename: string; content_type: string; size: number }) => api.post<UploadUrl>('/files/upload-url', file),
+};
+
+export const chatAPI = {
+  contacts: () => api.get<ChatContact[]>('/chat/contacts'),
+  conversations: () => api.get<ConversationSummary[]>('/chat/conversations'),
+  conversation: (id: number) => api.get<ConversationDetail>(`/chat/conversations/${id}`),
+  startDirect: (userId: number) => api.post<ConversationDetail>('/chat/direct', { user_id: userId }),
+  createGroup: (data: { name: string; description?: string; member_ids: number[] }) => api.post<ConversationDetail>('/chat/groups', data),
+  updateGroup: (id: number, data: { name?: string; description?: string | null }) => api.patch<ConversationDetail>(`/chat/conversations/${id}`, data),
+  addMembers: (id: number, userIds: number[]) => api.post<ConversationDetail>(`/chat/conversations/${id}/members`, { user_ids: userIds }),
+  setMemberRole: (id: number, userId: number, role: MemberRole) => api.put<ConversationDetail>(`/chat/conversations/${id}/members/${userId}`, { role }),
+  removeMember: (id: number, userId: number) => api.delete(`/chat/conversations/${id}/members/${userId}`),
+  messages: (id: number, before?: number) => api.get<ChatMessage[]>(`/chat/conversations/${id}/messages`, { params: { before, limit: 50 } }),
+  send: (id: number, message: SendMessage) => api.post<ChatMessage>(`/chat/conversations/${id}/messages`, message),
+  markRead: (id: number, messageId: number) => api.post(`/chat/conversations/${id}/read`, { message_id: messageId }),
+  unread: () => api.get<{ total: number }>('/chat/unread'),
+  typing: (id: number, typing: boolean) => api.post(`/chat/conversations/${id}/typing`, { typing }),
+  status: (id: number) => api.get<ConversationStatus>(`/chat/conversations/${id}/status`),
+  receipts: (messageId: number) => api.get<MessageReceipt[]>(`/chat/messages/${messageId}/receipts`),
+  deleteMessage: (messageId: number) => api.delete<ChatMessage>(`/chat/messages/${messageId}`),
+  react: (messageId: number, emoji: string) => api.put<ChatMessage>(`/chat/messages/${messageId}/reaction`, { emoji }),
+  unreact: (messageId: number) => api.delete<ChatMessage>(`/chat/messages/${messageId}/reaction`),
+  attachmentUrl: (messageId: number) => api.get<{ download_url: string }>(`/chat/messages/${messageId}/attachment`),
+  communities: () => api.get<CommunitySummary[]>('/chat/communities'),
+  createCommunity: (data: { name: string; description?: string }) => api.post<{ id: number }>('/chat/communities', data),
+  addGroupToCommunity: (communityId: number, conversationId: number) => api.post(`/chat/communities/${communityId}/groups`, { conversation_id: conversationId }),
+  removeGroupFromCommunity: (communityId: number, conversationId: number) => api.delete(`/chat/communities/${communityId}/groups/${conversationId}`),
+  addCommunityMembers: (communityId: number, userIds: number[]) => api.post(`/chat/communities/${communityId}/members`, { user_ids: userIds }),
+  leaveCommunity: (communityId: number, userId: number) => api.delete(`/chat/communities/${communityId}/members/${userId}`),
+};

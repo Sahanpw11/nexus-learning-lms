@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import GoogleSignInButton from '../components/GoogleSignInButton';
 import { EyeIcon, EyeSlashIcon, ArrowRightIcon } from '@heroicons/react/24/outline';
 
 const Login = () => {
@@ -12,7 +13,7 @@ const Login = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   
-  const { login } = useAuth();
+  const { login, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -36,7 +37,17 @@ const Login = () => {
     }
     
     setLoading(false);
-  };  return (
+  };
+
+  const handleGoogle = async (credential: string) => {
+    setError('');
+    const result = await loginWithGoogle(credential);
+    if (!result.success) setError(result.error);
+    else if (result.onboarding) navigate('/onboarding', { state: result.onboarding });
+    else navigate('/dashboard');
+  };
+
+  return (
     <div className="min-h-screen relative overflow-hidden font-sf" style={{ backgroundColor: '#fcfcf7' }}>
       {/* Background Elements */}
       <div className="absolute inset-0 bg-grid-pattern opacity-5"></div>
@@ -74,6 +85,12 @@ const Login = () => {
 
             {/* Login Form */}
             <div className="bg-white/70 backdrop-blur-md rounded-2xl p-8 shadow-lg border border-white/20 animate-fade-scale">
+              <GoogleSignInButton onCredential={handleGoogle} />
+              <div className="flex items-center my-6" aria-hidden="true">
+                <div className="flex-1 border-t border-gray-200" />
+                <span className="px-4 text-micro text-gray-500 tracking-wider">OR WITH EMAIL</span>
+                <div className="flex-1 border-t border-gray-200" />
+              </div>
               <form onSubmit={handleSubmit} className="space-y-6">
                 {error && (
                   <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-caption animate-slide-up">

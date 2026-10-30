@@ -44,6 +44,8 @@ const r2 =
 
 export const config = {
   isProduction,
+  // OAuth Web client ID; Google sign-in answers 503 until it is set.
+  googleClientId: env.GOOGLE_CLIENT_ID ?? null,
   // Vercel sets VERCEL=1; each function instance only needs a couple of connections.
   isServerless: Boolean(env.VERCEL),
   r2,

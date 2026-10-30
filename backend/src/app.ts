@@ -3,6 +3,7 @@ import express from 'express';
 import { config } from './config';
 import { errorHandler } from './errors';
 import { authRouter } from './routes/auth';
+import { chatRouter } from './routes/chat';
 import { classesRouter } from './routes/classes';
 import { filesRouter } from './routes/files';
 import { usersRouter } from './routes/users';
@@ -12,6 +13,8 @@ const endpoints = [
   'POST /auth/register',
   'POST /auth/login',
   'GET /auth/me',
+  'POST /auth/google (Google ID token → signed in, or onboarding)',
+  'POST /auth/google/complete (onboarding: name + student/teacher)',
   'POST /auth/create-admin (admin)',
   'GET /users/ (admin)',
   'GET /users/teachers/all',
@@ -28,6 +31,13 @@ const endpoints = [
   'GET /classes/:id/students (admin, teacher)',
   'POST /files/upload-url (signed R2 PUT, owner-scoped key)',
   'POST /files/download-url (own files, or any for admin)',
+  'GET /chat/contacts | GET /chat/conversations | GET /chat/conversations/:id',
+  'POST /chat/direct | POST /chat/groups | PATCH /chat/conversations/:id',
+  'POST|PUT|DELETE /chat/conversations/:id/members[/:userId]',
+  'GET|POST /chat/conversations/:id/messages | POST /chat/conversations/:id/read',
+  'GET /chat/unread | POST /chat/conversations/:id/typing | GET /chat/conversations/:id/status | GET /chat/messages/:id/receipts',
+  'DELETE /chat/messages/:id | PUT|DELETE /chat/messages/:id/reaction | GET /chat/messages/:id/attachment',
+  'GET|POST /chat/communities | POST|DELETE /chat/communities/:id/groups | POST|DELETE /chat/communities/:id/members',
 ];
 
 export function createApp() {
@@ -59,6 +69,7 @@ export function createApp() {
   app.use('/users', usersRouter);
   app.use('/classes', classesRouter);
   app.use('/files', filesRouter);
+  app.use('/chat', chatRouter);
 
   app.use((_req, res) => {
     res.status(404).json({ detail: 'Not Found' });

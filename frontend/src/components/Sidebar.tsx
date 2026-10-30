@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { chatAPI } from '../services/api';
 import {
   HomeIcon,
   BookOpenIcon,
@@ -12,11 +13,38 @@ import {
   CogIcon,
   BellIcon,
   AcademicCapIcon,
-  ArrowRightOnRectangleIcon
+  ArrowRightOnRectangleIcon,
+  ChatBubbleLeftRightIcon
 } from '@heroicons/react/24/outline';
+
+// Unread chat messages for the Messages icon; also lets senders see "delivered" while this app is open.
+const UNREAD_POLL_MS = 15000;
+
+function useUnreadTotal(enabled: boolean) {
+  const [total, setTotal] = useState(0);
+  useEffect(() => {
+    if (!enabled) return;
+    let cancelled = false;
+    const load = () => {
+      if (document.visibilityState !== 'visible') return;
+      chatAPI
+        .unread()
+        .then(({ data }) => !cancelled && setTotal(data.total))
+        .catch(() => undefined);
+    };
+    load();
+    const timer = window.setInterval(load, UNREAD_POLL_MS);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [enabled]);
+  return total;
+}
 
 const Sidebar = () => {
   const { user, logout } = useAuth();
+  const unread = useUnreadTotal(Boolean(user));
   const location = useLocation();
 
   const handleLogout = async () => {
@@ -25,6 +53,7 @@ const Sidebar = () => {
   const getNavigationItems = () => {
     const baseItems = [
       { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
+      { name: 'Messages', href: '/chat', icon: ChatBubbleLeftRightIcon },
       { name: 'Classes', href: '/classes', icon: BookOpenIcon },
       { name: 'Assignments', href: '/assignments', icon: DocumentTextIcon },
       { name: 'Calendar', href: '/calendar', icon: CalendarIcon },
@@ -100,6 +129,14 @@ const Sidebar = () => {
                 }`}
               >
                 <Icon className="h-6 w-6" />
+                {item.href === '/chat' && unread > 0 && (
+                  <span
+                    className="absolute top-1.5 right-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-orange-500 text-white text-[10px] font-medium flex items-center justify-center"
+                    aria-label={`${unread} unread messages`}
+                  >
+                    {unread > 99 ? '99+' : unread}
+                  </span>
+                )}
               </Link>
               
               {/* Tooltip */}

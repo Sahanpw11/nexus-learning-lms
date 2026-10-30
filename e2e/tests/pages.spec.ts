@@ -4,9 +4,9 @@ type Role = 'admin' | 'teacher' | 'student';
 
 // The frontend still signs in with demo users (see AuthContext), so seed that session directly.
 const demoUsers: Record<Role, object> = {
-  admin: { id: 'admin_1', name: 'Admin User', email: 'admin@example.com', role: 'admin' },
-  teacher: { id: 'teacher_1', name: 'Dr. John Smith', email: 'teacher@example.com', role: 'teacher' },
-  student: { id: 'student_1', name: 'Alex Johnson', email: 'student@example.com', role: 'student' },
+  admin: { id: 'admin_1', apiId: 1, name: 'Admin User', full_name: 'Admin User', email: 'admin@example.com', role: 'admin' },
+  teacher: { id: 'teacher_1', apiId: 2, name: 'Dr. John Smith', full_name: 'Dr. John Smith', email: 'teacher@example.com', role: 'teacher' },
+  student: { id: 'student_1', apiId: 3, name: 'Alex Johnson', full_name: 'Alex Johnson', email: 'student@example.com', role: 'student' },
 };
 
 const routes = [
@@ -36,9 +36,12 @@ const routes = [
 ];
 
 async function signInAs(page: Page, role: Role) {
+  // Demo sessions have no real token; answer the sidebar's unread poll instead of the API.
+  await page.route('**/api/chat/unread', (route) => route.fulfill({ json: { total: 0 } }));
+
   await page.addInitScript((user) => {
     localStorage.setItem('user', JSON.stringify(user));
-    localStorage.setItem('token', 'mock_token');
+    localStorage.setItem('token', 'e2e-session-token');
   }, demoUsers[role]);
 }
 
@@ -90,15 +93,24 @@ test('note editor table button inserts a table', async ({ page }) => {
   await expect(editor).not.toContainText('false');
 });
 
-test('demo login signs in and opens the dashboard', async ({ page }) => {
-  await signInAs(page, 'teacher');
-  await page.goto('/dashboard');
-  await page.evaluate(() => localStorage.clear());
+test('email login checks the real account', async ({ page, request }) => {
+  const email = `login-${Date.now()}@example.com`;
+  const created = await request.post('http://localhost:8000/auth/register', {
+    data: { email, full_name: 'Login Tester', password: 'right-pass', role: 'student' },
+  });
+  expect(created.status()).toBe(200);
+
   await page.goto('/login');
-  await page.locator('input[name="email"]').fill('student@example.com');
-  await page.locator('input[name="password"]').fill('anything');
+  await page.locator('input[name="email"]').fill(email);
+  await page.locator('input[name="password"]').fill('wrong-pass');
+  await page.locator('button[type="submit"]').click();
+  await expect(page.getByText('Incorrect email or password')).toBeVisible();
+
+  await page.locator('input[name="password"]').fill('right-pass');
   await page.locator('button[type="submit"]').click();
   await expect(page).toHaveURL(/\/dashboard$/);
+  // The dashboard greets the signed-in account by first name.
+  await expect(page.getByText('Login', { exact: true })).toBeVisible();
 });
 
 test('a visitor with no session is sent to the login page', async ({ page }) => {

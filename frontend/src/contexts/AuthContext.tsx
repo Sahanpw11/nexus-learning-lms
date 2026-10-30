@@ -1,12 +1,14 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { authAPI } from '../services/api';
 import { isAxiosError } from 'axios';
-import type { Credentials, User, UserCreate, UserRole } from '../../../shared/types';
+import type { Credentials, GoogleOnboarding, User, UserCreate, UserRole } from '../../../shared/types';
 
 interface SessionUser {
-  id: number | string;
-  name?: string;
-  full_name?: string;
+  // shortcut: the mock-data pages filter by demo ids like "teacher_1"; drop once those pages read the API.
+  id: string;
+  apiId: number; // the real account id from the API
+  name: string;
+  full_name: string;
   email: string;
   role: UserRole;
 }
@@ -17,11 +19,21 @@ interface AuthResult {
   data?: User;
 }
 
+export interface PendingOnboarding {
+  onboardingToken: string;
+  email: string;
+  fullName: string;
+}
+
+type GoogleResult = { success: true; onboarding?: PendingOnboarding } | { success: false; error: string };
+
 interface AuthContextValue {
   user: SessionUser | null;
   token: string | null;
   loading: boolean;
   login: (credentials: Credentials) => Promise<AuthResult>;
+  loginWithGoogle: (credential: string) => Promise<GoogleResult>;
+  completeOnboarding: (data: GoogleOnboarding) => Promise<AuthResult>;
   register: (userData: UserCreate) => Promise<AuthResult>;
   logout: () => void;
   isAuthenticated: boolean;
@@ -37,88 +49,85 @@ export const useAuth = () => {
   return context;
 };
 
+const toSessionUser = (me: User): SessionUser => ({
+  id: `${me.role}_1`,
+  apiId: me.id,
+  name: me.full_name,
+  full_name: me.full_name,
+  email: me.email,
+  role: me.role,
+});
+
+const errorMessage = (error: unknown, fallback: string) =>
+  (isAxiosError<{ detail: unknown }>(error) && typeof error.response?.data?.detail === 'string' && error.response.data.detail) ||
+  fallback;
+
 export const AuthProvider = ({ children }: React.PropsWithChildren) => {
   const [user, setUser] = useState<SessionUser | null>(null);
   const [token, setToken] = useState(localStorage.getItem('token'));
-  const [loading, setLoading] = useState(true);  useEffect(() => {
-    const initAuth = () => {
-      // Check for existing user data in localStorage first
-      const savedUser = localStorage.getItem('user');
-      const savedToken = localStorage.getItem('token');
+  const [loading, setLoading] = useState(true);
 
-      if (savedUser && savedToken) {
-        try {
-          const parsedUser = JSON.parse(savedUser) as SessionUser;
-          setUser(parsedUser);
-          setToken(savedToken);
-          setLoading(false);
-          return;
-        } catch (error) {
-          console.error('Error parsing saved user data:', error);
-          localStorage.removeItem('user');
-          localStorage.removeItem('token');
-        }
+  useEffect(() => {
+    const savedUser = localStorage.getItem('user');
+    const savedToken = localStorage.getItem('token');
+    // Sessions from the old demo login (token "mock_token") are not real accounts; make them sign in again.
+    if (savedUser && savedToken && savedToken !== 'mock_token') {
+      try {
+        setUser(JSON.parse(savedUser) as SessionUser);
+        setToken(savedToken);
+      } catch {
+        localStorage.removeItem('user');
+        localStorage.removeItem('token');
       }
+    } else {
+      localStorage.removeItem('user');
+      localStorage.removeItem('token');
+    }
+    setLoading(false);
+  }, []);
 
-      // No saved session: stay signed out so protected routes redirect to /login.
-      setLoading(false);
-    };
+  const startSession = async (accessToken: string) => {
+    localStorage.setItem('token', accessToken); // the API client reads it for the /auth/me call
+    const { data: me } = await authAPI.getMe();
+    const sessionUser = toSessionUser(me);
+    localStorage.setItem('user', JSON.stringify(sessionUser));
+    setToken(accessToken);
+    setUser(sessionUser);
+  };
 
-    initAuth();
-  }, []);  const login = async (credentials: Credentials): Promise<AuthResult> => {
+  const login = async (credentials: Credentials): Promise<AuthResult> => {
     try {
-      // For development: mock authentication
-      if (credentials.email && credentials.password) {
-        let mockUser: SessionUser;
-        
-        // Different mock users based on email
-        if (credentials.email.includes('teacher')) {
-          mockUser = {
-            id: 'teacher_1',
-            name: 'Dr. John Smith',
-            email: credentials.email,
-            role: 'teacher'
-          };
-        } else if (credentials.email.includes('student')) {
-          mockUser = {
-            id: 'student_1',
-            name: 'Alex Johnson',
-            email: credentials.email,
-            role: 'student'
-          };
-        } else if (credentials.email.includes('admin')) {
-          mockUser = {
-            id: 'admin_1',
-            name: 'Admin User',
-            email: credentials.email,
-            role: 'admin'
-          };
-        } else {
-          // Default to teacher for any other email
-          mockUser = {
-            id: 'teacher_1',
-            name: 'Dr. John Smith',
-            email: credentials.email,
-            role: 'teacher'
-          };
-        }
-        
-        localStorage.setItem('token', 'mock_token');
-        setToken('mock_token');
-        
-        setUser(mockUser);
-        localStorage.setItem('user', JSON.stringify(mockUser));
-        
-        return { success: true };
-      }
-      
-      return { success: false, error: 'Please enter valid credentials' };
+      const { data } = await authAPI.login(credentials);
+      await startSession(data.access_token);
+      return { success: true };
     } catch (error) {
-      console.error('Login failed:', error);
-      return { 
-        success: false, 
-        error: (isAxiosError<{ detail: string }>(error) && error.response?.data?.detail) || 'Login failed' 
-      };
+      return { success: false, error: errorMessage(error, 'Login failed') };
+    }
+  };
+
+  const loginWithGoogle = async (credential: string): Promise<GoogleResult> => {
+    try {
+      const { data } = await authAPI.google(credential);
+      if (data.status === 'onboarding') {
+        return {
+          success: true,
+          onboarding: { onboardingToken: data.onboarding_token, email: data.email, fullName: data.full_name },
+        };
+      }
+      await startSession(data.access_token);
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: errorMessage(error, 'Google sign-in failed') };
+    }
+  };
+
+  const completeOnboarding = async (data: GoogleOnboarding): Promise<AuthResult> => {
+    try {
+      const { data: tokenData } = await authAPI.completeGoogleOnboarding(data);
+      await startSession(tokenData.access_token);
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: errorMessage(error, 'Could not finish setting up your account') };
     }
   };
 
@@ -128,16 +137,14 @@ export const AuthProvider = ({ children }: React.PropsWithChildren) => {
       return { success: true, data: response.data };
     } catch (error) {
       console.error('Registration failed:', error);
-      return { 
-        success: false, 
-        error: (isAxiosError<{ detail: string }>(error) && error.response?.data?.detail) || 'Registration failed' 
-      };
+      return { success: false, error: errorMessage(error, 'Registration failed') };
     }
   };
 
   const logout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
+    window.google?.accounts.id.disableAutoSelect();
     setToken(null);
     setUser(null);
   };
@@ -147,14 +154,12 @@ export const AuthProvider = ({ children }: React.PropsWithChildren) => {
     token,
     loading,
     login,
+    loginWithGoogle,
+    completeOnboarding,
     register,
     logout,
     isAuthenticated: !!token && !!user,
   };
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

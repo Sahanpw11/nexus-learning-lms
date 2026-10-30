@@ -65,13 +65,26 @@ filesRouter.post('/upload-url', requireUser, async (req, res) => {
   res.json({ key, upload_url, method: 'PUT', headers: { 'Content-Type': content_type }, expires_in: URL_TTL_SECONDS });
 });
 
+// Callers must check the user may see the file; chat uses this for attachments shared with a conversation.
+export async function signedDownloadUrl(key: string, filename?: string) {
+  const { client, bucket } = r2();
+  return getSignedUrl(
+    client,
+    new GetObjectCommand({
+      Bucket: bucket,
+      Key: key,
+      // Strip characters that could break out of the quoted header value.
+      ...(filename && { ResponseContentDisposition: `inline; filename="${filename.replace(/["\\\r\n]/g, '_')}"` }),
+    }),
+    { expiresIn: URL_TTL_SECONDS },
+  );
+}
+
+export const isOwnFileKey = (user: UserRow, key: string) => key.startsWith(ownerPrefix(user));
+
 filesRouter.post('/download-url', requireUser, async (req, res) => {
   const { key } = parseBody(downloadRequest, req.body);
   const me = currentUser(req);
-  if (me.role !== 'ADMIN' && !key.startsWith(ownerPrefix(me))) throw new HttpError(403, 'Not authorized to access this file');
-  const { client, bucket } = r2();
-  const download_url = await getSignedUrl(client, new GetObjectCommand({ Bucket: bucket, Key: key }), {
-    expiresIn: URL_TTL_SECONDS,
-  });
-  res.json({ download_url, expires_in: URL_TTL_SECONDS });
+  if (me.role !== 'ADMIN' && !isOwnFileKey(me, key)) throw new HttpError(403, 'Not authorized to access this file');
+  res.json({ download_url: await signedDownloadUrl(key), expires_in: URL_TTL_SECONDS });
 });

@@ -2,9 +2,12 @@ import { expect, test, type Page } from '@playwright/test';
 
 // These tests only navigate and read; they never write to the database.
 async function signInAsTeacher(page: Page) {
+  // Demo sessions have no real token; answer the sidebar's unread poll instead of the API.
+  await page.route('**/api/chat/unread', (route) => route.fulfill({ json: { total: 0 } }));
+
   await page.addInitScript(() => {
-    localStorage.setItem('user', JSON.stringify({ id: 'teacher_1', name: 'Dr. John Smith', email: 'teacher@example.com', role: 'teacher' }));
-    localStorage.setItem('token', 'mock_token');
+    localStorage.setItem('user', JSON.stringify({ id: 'teacher_1', apiId: 2, name: 'Dr. John Smith', full_name: 'Dr. John Smith', email: 'teacher@example.com', role: 'teacher' }));
+    localStorage.setItem('token', 'e2e-session-token');
   });
 }
 

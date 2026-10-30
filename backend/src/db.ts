@@ -127,6 +127,76 @@ CREATE TABLE IF NOT EXISTS calendar_events (
   created_at TIMESTAMPTZ DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS ix_calendar_events_id ON calendar_events (id);
+
+-- Chat (added after the SQLAlchemy era; not part of the legacy schema)
+CREATE TABLE IF NOT EXISTS communities (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR NOT NULL,
+  description TEXT,
+  created_by INTEGER NOT NULL REFERENCES users(id),
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS conversations (
+  id SERIAL PRIMARY KEY,
+  kind VARCHAR NOT NULL CHECK (kind IN ('direct', 'group', 'class', 'announcement')),
+  name VARCHAR,
+  description TEXT,
+  class_id INTEGER UNIQUE REFERENCES classes(id),
+  community_id INTEGER REFERENCES communities(id),
+  created_by INTEGER REFERENCES users(id),
+  created_at TIMESTAMPTZ DEFAULT now(),
+  last_message_at TIMESTAMPTZ DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS ux_community_announcements ON conversations (community_id) WHERE kind = 'announcement';
+
+CREATE TABLE IF NOT EXISTS conversation_members (
+  conversation_id INTEGER NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+  user_id INTEGER NOT NULL REFERENCES users(id),
+  role VARCHAR NOT NULL DEFAULT 'member' CHECK (role IN ('admin', 'member')),
+  last_read_message_id INTEGER NOT NULL DEFAULT 0,
+  joined_at TIMESTAMPTZ DEFAULT now(),
+  PRIMARY KEY (conversation_id, user_id)
+);
+CREATE INDEX IF NOT EXISTS ix_conversation_members_user ON conversation_members (user_id);
+
+CREATE TABLE IF NOT EXISTS messages (
+  id SERIAL PRIMARY KEY,
+  conversation_id INTEGER NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+  sender_id INTEGER NOT NULL REFERENCES users(id),
+  body TEXT,
+  attachment_key VARCHAR,
+  attachment_name VARCHAR,
+  attachment_type VARCHAR,
+  attachment_size INTEGER,
+  reply_to_id INTEGER REFERENCES messages(id),
+  created_at TIMESTAMPTZ DEFAULT now(),
+  deleted_at TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS ix_messages_conversation ON messages (conversation_id, id);
+
+-- Delivery/read history: one row each time a member's delivered or read position moves forward.
+ALTER TABLE conversation_members ADD COLUMN IF NOT EXISTS last_delivered_message_id INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE conversation_members ADD COLUMN IF NOT EXISTS typing_until TIMESTAMPTZ;
+CREATE TABLE IF NOT EXISTS message_receipts (
+  conversation_id INTEGER NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+  user_id INTEGER NOT NULL REFERENCES users(id),
+  kind VARCHAR NOT NULL CHECK (kind IN ('delivered', 'read')),
+  up_to_message_id INTEGER NOT NULL,
+  at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (conversation_id, user_id, kind, up_to_message_id)
+);
+CREATE TABLE IF NOT EXISTS user_presence (
+  user_id INTEGER PRIMARY KEY REFERENCES users(id),
+  last_seen_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS message_reactions (
+  message_id INTEGER NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
+  user_id INTEGER NOT NULL REFERENCES users(id),
+  emoji VARCHAR(16) NOT NULL,
+  PRIMARY KEY (message_id, user_id)
+);
 `;
 
 export async function initSchema(): Promise<void> {

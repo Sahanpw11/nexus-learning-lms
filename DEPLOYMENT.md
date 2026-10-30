@@ -65,12 +65,22 @@ How uploads work: the frontend calls `POST /files/upload-url` with `{ filename, 
    | `SECRET_KEY` | long random string (reuse the old one if migrating, so existing logins stay valid) |
    | `NODE_ENV` | `production` |
    | `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET` | from step 2 |
+   | `GOOGLE_CLIENT_ID` and `REACT_APP_GOOGLE_CLIENT_ID` | the same Google OAuth Web client ID (see below); the second is baked into the frontend at build time |
 
    No `REACT_APP_API_URL` or `CORS_ORIGINS` needed: the app calls the API at `/api` on its own domain.
 4. Deploy. The build runs `npm run migrate`, which creates any missing tables in Neon (existing tables and data are left alone). If the database is unreachable the build fails instead of deploying a broken API.
 5. Check `https://your-app.vercel.app/api/health` returns `{"status":"healthy",...}`, then add the app URL to the R2 CORS policy.
 
 How it's wired: `api/index.ts` is the serverless function; `vercel.json` rewrites `/api/*` to it and every other path to `index.html`. The API strips the `/api` prefix itself, so the same Express routes work locally without it.
+
+## Google sign-in
+
+1. Google Cloud Console → APIs & Services → Credentials → *Create credentials* → *OAuth client ID* → type **Web application**.
+2. **Authorized JavaScript origins:** `https://your-app.vercel.app` and `http://localhost:3000`. (No redirect URIs needed.)
+3. If asked, configure the OAuth consent screen (External, app name, support email). While it is in *Testing*, only listed test users can sign in; publish it to allow any Google account.
+4. Put the client ID in `GOOGLE_CLIENT_ID` and `REACT_APP_GOOGLE_CLIENT_ID` (Vercel), and in `backend/.env` / `frontend/.env.local` locally.
+
+First-time Google users choose *student* or *teacher* on `/onboarding`; admins are only created by admins.
 
 ## 5. Demo accounts (optional)
 

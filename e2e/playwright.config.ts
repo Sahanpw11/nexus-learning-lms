@@ -28,7 +28,7 @@ export default defineConfig({
       command: 'npm --prefix ../frontend start',
       url: 'http://localhost:3000',
       // No REACT_APP_API_URL: the app calls same-origin /api, proxied to the backend like on Vercel.
-      env: { BROWSER: 'none', PORT: '3000' },
+      env: { BROWSER: 'none', PORT: '3000', REACT_APP_GOOGLE_CLIENT_ID: 'e2e-client-id' },
       reuseExistingServer: Boolean(process.env.E2E_REUSE_SERVERS),
       timeout: 180_000,
     },
