@@ -1,4 +1,4 @@
-# Nexus Learning by Reactor Minds
+# Nexus Learning
 
 A modern Learning Management Platform built for tuition classes and independent learners, featuring real-time collaboration, organized coursework, and seamless communication between students and teachers.
 
@@ -27,14 +27,17 @@ A modern Learning Management Platform built for tuition classes and independent 
 ## 🔧 Technology Stack
 
 ### Backend
-- **FastAPI** - Modern Python web framework
-- **PostgreSQL** - Relational database
-- **SQLAlchemy** - ORM for database operations
-- **JWT** - Secure authentication
-- **Firebase Storage** - File storage and management
+- **Node.js + Express 5 + TypeScript** - API server
+- **PostgreSQL** (`pg`, parameterized SQL) - Relational database
+- **Zod** - Request validation
+- **JWT + bcrypt** - Authentication (compatible with tokens and password hashes from the old Python API)
+- **Cloudflare R2** - File storage via signed upload/download URLs
+
+### Hosting
+- One **Vercel** project serves the React app and the API under `/api`, with **Neon** (Postgres) and **R2** (files). See `DEPLOYMENT.md`.
 
 ### Frontend
-- **React.js** - Modern UI framework
+- **React.js + TypeScript** - Modern UI framework
 - **Tailwind CSS** - Utility-first styling
 - **Axios** - API communication
 - **React Router** - SPA navigation
@@ -43,10 +46,8 @@ A modern Learning Management Platform built for tuition classes and independent 
 ## 🚀 Quick Start
 
 ### Prerequisites
-- Python 3.8+
-- Node.js 16+
+- Node.js 20+
 - PostgreSQL 12+
-- Firebase account (for file storage)
 
 ### Backend Setup
 
@@ -55,35 +56,23 @@ A modern Learning Management Platform built for tuition classes and independent 
    cd backend
    ```
 
-2. **Create virtual environment**
+2. **Install dependencies**
    ```bash
-   python -m venv venv
-   
-   # Windows
-   venv\Scripts\activate
-   
-   # macOS/Linux
-   source venv/bin/activate
+   npm install
    ```
 
-3. **Install dependencies**
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-4. **Configure environment**
+3. **Configure environment**
    - Copy `.env.example` to `.env`
-   - Update database credentials
-   - Add Firebase configuration
+   - Set `DATABASE_URL` (or the `POSTGRES_*` values) and `SECRET_KEY`
 
-5. **Setup database**
+4. **Setup database** (creates tables and demo users; safe to re-run)
    ```bash
-   python setup_db.py
+   npm run seed:dev
    ```
 
-6. **Start the server**
+5. **Start the server**
    ```bash
-   uvicorn main:app --reload
+   npm run dev
    ```
 
 The API will be available at `http://localhost:8000`
@@ -120,15 +109,17 @@ After running the database setup, you can login with:
 ```
 LMS_2/
 ├── backend/
-│   ├── routers/           # API route handlers
-│   ├── models.py          # Database models
-│   ├── schemas.py         # Pydantic schemas
-│   ├── auth.py           # Authentication utilities
-│   ├── database.py       # Database configuration
-│   ├── firebase_utils.py # Firebase integration
-│   ├── config.py         # Application configuration
-│   ├── main.py           # FastAPI application
-│   └── setup_db.py       # Database initialization
+│   ├── src/
+│   │   ├── routes/       # auth, users, classes handlers
+│   │   ├── app.ts        # Express application
+│   │   ├── auth.ts       # JWT, password hashing, role guards
+│   │   ├── config.ts     # Environment parsing
+│   │   ├── db.ts         # Connection pool and schema
+│   │   ├── seed.ts       # Database initialization
+│   │   └── server.ts     # Entry point
+│   └── test/             # API and legacy-compatibility tests
+├── e2e/                  # Playwright browser tests
+├── shared/types.ts       # Request/response types used by both sides
 ├── frontend/
 │   ├── public/           # Static files
 │   ├── src/
@@ -136,7 +127,7 @@ LMS_2/
 │   │   ├── pages/        # Page components
 │   │   ├── contexts/     # React contexts
 │   │   ├── services/     # API services
-│   │   └── App.js        # Main application
+│   │   └── App.tsx       # Main application
 │   └── package.json      # Dependencies
 └── README.md
 ```
@@ -161,30 +152,38 @@ LMS_2/
 
 #### Backend (.env)
 ```bash
-# Database
-POSTGRES_USER=postgres
-POSTGRES_PASSWORD=your_password
-POSTGRES_SERVER=localhost
-POSTGRES_PORT=5432
-POSTGRES_DB=LMS
+# Database (or POSTGRES_USER / POSTGRES_PASSWORD / POSTGRES_SERVER / POSTGRES_PORT / POSTGRES_DB)
+DATABASE_URL=postgresql://postgres:your_password@localhost:5432/LMS
 
-# JWT
+# JWT (keep the old value when migrating so existing sessions stay valid)
 SECRET_KEY=your-secret-key
-ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=30
 
-# Firebase
-FIREBASE_CREDENTIALS_PATH=./firebase-credentials.json
+# Cloudflare R2 (the /files endpoints return 503 until all four are set)
+R2_ACCOUNT_ID=...
+R2_ACCESS_KEY_ID=...
+R2_SECRET_ACCESS_KEY=...
+R2_BUCKET=nexus-learning-files
+
+# In production, a missing SECRET_KEY or database password stops startup
+NODE_ENV=production
 ```
 
 #### Frontend (.env)
-```bash
-REACT_APP_API_URL=http://localhost:8000
-```
+Nothing required: the app calls `/api` on its own domain, and `npm start` proxies `/api` to `http://localhost:8000`. Set `REACT_APP_API_URL` only to point at an API elsewhere.
 
 ## 📊 API Documentation
 
-Once the backend is running, visit `http://localhost:8000/docs` for interactive API documentation.
+Once the backend is running, `http://localhost:8000/docs` (or `/api/docs` when deployed) lists every endpoint and its required role as JSON (it replaces FastAPI's interactive Swagger page). Errors keep FastAPI's `{"detail": ...}` shape.
+
+> Note: the frontend still signs users in with demo accounts (`AuthContext.tsx`); registration calls the real API.
+
+### Testing
+```bash
+npm run typecheck      # backend + frontend
+npm test               # API tests; needs a disposable Postgres at TEST_DATABASE_URL (database name must end in _test)
+npm run test:e2e       # Playwright; starts both servers, uses E2E_DATABASE_URL
+```
 
 ### Key Endpoints
 - `POST /auth/login` - User authentication
@@ -192,6 +191,8 @@ Once the backend is running, visit `http://localhost:8000/docs` for interactive 
 - `GET /classes/` - Get user's classes
 - `POST /classes/` - Create new class
 - `GET /users/` - Get all users (admin only)
+- `POST /files/upload-url` - Signed URL to upload a file to R2
+- `POST /files/download-url` - Signed URL to download your file
 
 ## 🧪 Testing
 
@@ -248,4 +249,4 @@ For support and questions:
 
 ---
 
-Built with ❤️ by the Reactor Minds team
+

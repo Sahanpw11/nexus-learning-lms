@@ -479,29 +479,10 @@ textarea:focus,
   letter-spacing: -0.025em;
 }
 
-.brand-reactor-minds {
-  font-size: 1.25rem; /* Made larger as requested */
-  font-weight: 400;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  margin-left: 0.55rem; /* Moved 2mm further to the right */
-}
 
-.brand-by {
-  font-family: 'SF Pro Display', 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
-}
 
-.brand-reactor-minds-text {
-  font-family: 'MontserratAlt1', sans-serif !important;
-}
 
-.brand-reactor {
-  color: #4a5568; /* gray-600 */
-}
 
-.brand-minds {
-  color: #ff6b35; /* orange brand color */
-}
 
 .brand-mobile-nexus {
   font-family: 'MontserratAlt1', sans-serif !important;
@@ -511,12 +492,6 @@ textarea:focus,
   letter-spacing: -0.02em;
 }
 
-.brand-mobile-reactor-minds {
-  font-size: 1rem; /* Made larger for mobile as well */
-  font-weight: 400;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
 
 /* Footer branding */
 .footer-branding {
@@ -530,9 +505,6 @@ textarea:focus,
   font-family: 'SF Pro Display', 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
 }
 
-.footer-montserrat {
-  font-family: 'MontserratAlt1', sans-serif !important;
-}
 
 /* Primary Orange Color System */
 .text-primary-orange {

@@ -1,348 +1,119 @@
-# 🚀 Deployment Guide - Nexus Learning LMS
+# Deployment Guide: Vercel + Neon + Cloudflare R2
 
-## Overview
-This guide covers deploying the LMS with:
-- **Frontend**: Vercel (React)
-- **Backend**: Railway/Render (FastAPI)
-- **Database**: Railway PostgreSQL / Supabase
+The whole app runs as a single Vercel project:
 
----
+| Piece | Where | What it is |
+|---|---|---|
+| Frontend | Vercel | React build served as a single-page app |
+| API | Vercel, same project, under `/api` | Express app running as one serverless function (`api/index.ts`) |
+| Database | Neon | PostgreSQL |
+| Files | Cloudflare R2 | Uploaded files; the browser uploads/downloads directly with signed URLs |
 
-## 📋 Prerequisites
+## Prerequisites
 
-- GitHub account
-- Vercel account (free tier available)
-- Railway account OR Render account (free tier available)
-- Firebase project (for file storage - optional)
-
----
-
-## PART 1: Deploy Backend (Railway - Recommended)
-
-### Step 1: Prepare Your Repository
-
-1. **Push your code to GitHub:**
-   ```bash
-   cd e:\projects\LMS_2
-   git init
-   git add .
-   git commit -m "Initial commit - Nexus Learning LMS"
-   git branch -M main
-   git remote add origin https://github.com/YOUR_USERNAME/nexus-learning-lms.git
-   git push -u origin main
-   ```
-
-### Step 2: Deploy on Railway
-
-1. **Go to Railway.app**
-   - Visit https://railway.app/
-   - Sign up/Login with GitHub
-
-2. **Create New Project**
-   - Click "New Project"
-   - Select "Deploy from GitHub repo"
-   - Choose your `nexus-learning-lms` repository
-   - Select the `backend` folder as root directory
-
-3. **Add PostgreSQL Database**
-   - In your Railway project, click "+ New"
-   - Select "Database" → "PostgreSQL"
-   - Railway will automatically create a database
-
-4. **Configure Environment Variables**
-   Click on your backend service → "Variables" tab:
-   
-   ```env
-   # Database (Railway provides these automatically)
-   POSTGRES_USER=${{Postgres.PGUSER}}
-   POSTGRES_PASSWORD=${{Postgres.PGPASSWORD}}
-   POSTGRES_SERVER=${{Postgres.PGHOST}}
-   POSTGRES_PORT=${{Postgres.PGPORT}}
-   POSTGRES_DB=${{Postgres.PGDATABASE}}
-   
-   # JWT Configuration
-   SECRET_KEY=your-super-secret-key-min-32-chars-change-this
-   ALGORITHM=HS256
-   ACCESS_TOKEN_EXPIRE_MINUTES=30
-   
-   # CORS (Add your Vercel URL after frontend deployment)
-   CORS_ORIGINS=https://your-app.vercel.app,http://localhost:3000
-   FRONTEND_URL=https://your-app.vercel.app
-   
-   # Environment
-   ENVIRONMENT=production
-   ```
-
-5. **Deploy**
-   - Railway will automatically deploy
-   - Get your backend URL: `https://your-app.up.railway.app`
-
-6. **Initialize Database**
-   - Go to Railway dashboard → Your backend service
-   - Open "Settings" → "Deploy Trigger"
-   - Or run setup script via Railway CLI:
-   ```bash
-   railway run python setup_db.py
-   ```
-
-### Step 3: Alternative - Deploy on Render.com
-
-1. **Go to Render.com**
-   - Visit https://render.com/
-   - Sign up/Login with GitHub
-
-2. **Create New Web Service**
-   - Click "New +" → "Web Service"
-   - Connect your GitHub repository
-   - Configure:
-     - **Name**: nexus-learning-api
-     - **Root Directory**: backend
-     - **Environment**: Python 3
-     - **Build Command**: `pip install -r requirements.txt`
-     - **Start Command**: `uvicorn main:app --host 0.0.0.0 --port $PORT`
-
-3. **Add PostgreSQL Database**
-   - Click "New +" → "PostgreSQL"
-   - Link to your web service
-
-4. **Set Environment Variables** (same as Railway above)
-
-5. **Deploy**
-   - Render will build and deploy automatically
-   - Get your URL: `https://nexus-learning-api.onrender.com`
+- GitHub repository containing this project
+- Vercel, Neon and Cloudflare accounts (all have free tiers)
+- Node.js 22 locally (to run the database seed)
 
 ---
 
-## PART 2: Deploy Frontend (Vercel)
+## 1. Neon (database)
 
-### Step 1: Update API Configuration
-
-1. **Create environment file** (`frontend/.env.production`):
-   ```env
-   REACT_APP_API_URL=https://your-backend-url.railway.app
+1. Create a project at https://console.neon.tech (or Vercel dashboard → Storage → Neon, which also links the env vars).
+2. Copy the **pooled** connection string: in *Connection Details* turn on *Connection pooling*. The host contains `-pooler`:
    ```
-
-2. **Update API service** (`frontend/src/services/api.js`):
-   ```javascript
-   const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+   postgresql://USER:PASSWORD@ep-xxxx-pooler.REGION.aws.neon.tech/neondb?sslmode=require
    ```
+   Serverless functions open many short-lived connections; the pooled URL is what keeps them from exhausting Neon's limit.
 
-### Step 2: Deploy on Vercel
+### Moving existing data (optional)
 
-1. **Go to Vercel**
-   - Visit https://vercel.com/
-   - Sign up/Login with GitHub
+If you already have data in another Postgres (e.g. the old Railway database), copy it over. The schema is unchanged, so a straight dump/restore works:
 
-2. **Import Project**
-   - Click "Add New..." → "Project"
-   - Import your GitHub repository
-   - Select the repository
-
-3. **Configure Project**
-   - **Framework Preset**: Create React App
-   - **Root Directory**: `frontend`
-   - **Build Command**: `npm run build`
-   - **Output Directory**: `build`
-
-4. **Environment Variables**
-   Add in Vercel dashboard → Settings → Environment Variables:
-   ```
-   REACT_APP_API_URL=https://your-backend-url.railway.app
-   ```
-
-5. **Deploy**
-   - Click "Deploy"
-   - Vercel will build and deploy
-   - Get your URL: `https://nexus-learning.vercel.app`
-
-### Step 3: Update Backend CORS
-
-Go back to Railway/Render and update the `CORS_ORIGINS` environment variable:
-```env
-CORS_ORIGINS=https://nexus-learning.vercel.app,http://localhost:3000
-FRONTEND_URL=https://nexus-learning.vercel.app
+```bash
+pg_dump --no-owner --no-acl "OLD_DATABASE_URL" > lms.sql
+psql "NEON_DIRECT_URL" < lms.sql      # use Neon's direct (non-pooler) URL for the restore
 ```
 
----
+## 2. Cloudflare R2 (files)
 
-## PART 3: Post-Deployment Setup
-
-### Step 1: Initialize Database
-
-Run the setup script on Railway/Render:
-
-**Railway CLI:**
-```bash
-railway login
-railway link
-railway run python setup_db.py
-```
-
-**Render Dashboard:**
-- Go to Shell tab
-- Run: `python setup_db.py`
-
-This creates:
-- Admin: `admin@reactorminds.com` / `admin123`
-- Teacher: `teacher@example.com` / `teacher123`
-- Student: `student@example.com` / `student123`
-
-### Step 2: Configure Firebase (Optional)
-
-If using Firebase for file storage:
-
-1. Create Firebase project
-2. Download service account JSON
-3. On Railway/Render, add as environment variable:
-   ```env
-   FIREBASE_CREDENTIALS_JSON='{"type": "service_account", ...}'
+1. Cloudflare dashboard → R2 → *Create bucket* (e.g. `nexus-learning-files`). Keep it private.
+2. R2 → *Manage API tokens* → *Create API token* with **Object Read & Write** on that bucket. Note the *Access Key ID*, *Secret Access Key* and your *Account ID*.
+3. Bucket → *Settings* → *CORS policy*, so browsers can upload with the signed URLs:
+   ```json
+   [
+     {
+       "AllowedOrigins": ["https://your-app.vercel.app", "http://localhost:3000"],
+       "AllowedMethods": ["GET", "PUT"],
+       "AllowedHeaders": ["Content-Type"],
+       "MaxAgeSeconds": 3600
+     }
+   ]
    ```
-4. Update backend code to read from env variable instead of file
 
-### Step 3: Test Your Deployment
+How uploads work: the frontend calls `POST /files/upload-url` with `{ filename, content_type, size }`, then `PUT`s the file to the returned `upload_url` with the returned `Content-Type` header. Store the returned `key`; `POST /files/download-url` with `{ key }` returns a 5-minute download link. Keys are scoped per user (`users/<id>/…`), only the owner or an admin can get a download link, and uploads are limited to 50 MB and document/image/MP4 types.
 
-1. Visit your Vercel URL
-2. Login with test credentials
-3. Test all features:
-   - User authentication
-   - Class creation
-   - Assignment submission
-   - File uploads
-   - Real-time updates
+## 3. Vercel (frontend + API, one project)
 
----
+1. Vercel → *Add New Project* → import the repo. Keep the **Root Directory as the repository root**.
+2. Build settings come from the root `vercel.json` (install both apps, build the API, create missing tables, build the React app). Don't override them in the dashboard.
+3. Environment variables (Production and Preview):
 
-## 🔧 Troubleshooting
+   | Name | Value |
+   |---|---|
+   | `DATABASE_URL` | Neon pooled connection string |
+   | `SECRET_KEY` | long random string (reuse the old one if migrating, so existing logins stay valid) |
+   | `NODE_ENV` | `production` |
+   | `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET` | from step 2 |
 
-### Backend Issues
+   No `REACT_APP_API_URL` or `CORS_ORIGINS` needed: the app calls the API at `/api` on its own domain.
+4. Deploy. The build runs `npm run migrate`, which creates any missing tables in Neon (existing tables and data are left alone). If the database is unreachable the build fails instead of deploying a broken API.
+5. Check `https://your-app.vercel.app/api/health` returns `{"status":"healthy",...}`, then add the app URL to the R2 CORS policy.
 
-**"ModuleNotFoundError"**
-- Ensure `requirements.txt` is complete
-- Check Railway/Render build logs
+How it's wired: `api/index.ts` is the serverless function; `vercel.json` rewrites `/api/*` to it and every other path to `index.html`. The API strips the `/api` prefix itself, so the same Express routes work locally without it.
 
-**"Database connection failed"**
-- Verify environment variables
-- Check database is running
-- Ensure DATABASE_URL is correct
+## 5. Demo accounts (optional)
 
-**"CORS errors"**
-- Add your Vercel URL to CORS_ORIGINS
-- Restart backend service
+The seed script creates tables plus three demo users with **well-known passwords** — only do this for a demo deployment:
 
-### Frontend Issues
-
-**"Network Error" or "Failed to fetch"**
-- Check REACT_APP_API_URL is correct
-- Verify backend is running
-- Check browser console for CORS errors
-
-**"Blank page after deployment"**
-- Check Vercel build logs
-- Verify build command is correct
-- Check for JavaScript errors in console
-
----
-
-## 📊 Monitoring & Maintenance
-
-### Railway/Render
-- Monitor logs in dashboard
-- Set up alerts for errors
-- Check database usage
-- Monitor API response times
-
-### Vercel
-- Check Analytics dashboard
-- Monitor build times
-- Check deployment logs
-- Set up domain (optional)
-
----
-
-## 🔒 Security Checklist
-
-- [ ] Change default SECRET_KEY
-- [ ] Use strong database passwords
-- [ ] Enable HTTPS (automatic on Vercel/Railway)
-- [ ] Set up environment variables properly
-- [ ] Never commit .env files
-- [ ] Enable rate limiting (optional)
-- [ ] Set up database backups
-- [ ] Configure firewall rules
-
----
-
-## 💰 Cost Estimates
-
-### Free Tier Limits
-
-**Railway:**
-- $5 free credit monthly
-- ~500 hours runtime
-- Perfect for development/small projects
-
-**Render:**
-- Free tier available
-- 750 hours/month
-- Spins down after inactivity (slow first load)
-
-**Vercel:**
-- 100 GB bandwidth
-- Unlimited deployments
-- Perfect for frontend
-
-### Paid Plans (Optional)
-
-**Railway**: $5-20/month for production
-**Render**: $7/month for always-on service
-**Vercel**: $20/month Pro (optional)
-
----
-
-## 🚀 Quick Start Commands
-
-### Local Development
 ```bash
-# Backend
 cd backend
-python -m venv venv
-venv\Scripts\activate
-pip install -r requirements.txt
-python setup_db.py
-uvicorn main:app --reload
-
-# Frontend
-cd frontend
 npm install
-npm start
+DATABASE_URL="NEON_POOLED_URL" npm run seed:dev
 ```
 
-### Deploy Updates
+Creates `admin@reactorminds.com / admin123`, `teacher@example.com / teacher123`, `student@example.com / student123`. There is no change-password endpoint yet, so for a real deployment create users through registration and `/auth/create-admin` instead.
+
+---
+
+## Troubleshooting
+
+- **Build fails at `npm run migrate`:** `DATABASE_URL` is missing or wrong for that environment (Preview deployments need it too).
+- **Function crashes with "Missing required environment variable SECRET_KEY":** set `SECRET_KEY`; production refuses to fall back to a dev secret.
+- **API calls return the React page instead of JSON:** the request path must start with `/api`; check `REACT_APP_API_URL` is not set to something else.
+- **`/files/*` returns 503:** one of the four `R2_*` variables is missing.
+- **Upload `PUT` fails with 403 from R2:** the bucket CORS policy is missing the frontend origin, or the upload's `Content-Type`/size differs from what was requested — both are part of the signature.
+- **"too many connections":** `DATABASE_URL` is Neon's direct URL; switch to the `-pooler` one.
+
+## Limits of running the API serverless
+
+- First request after idle time is slower (cold start).
+- No WebSockets or background jobs inside the API; real-time live sessions would need a separate service.
+- Request bodies are capped around 4.5 MB, which is why files go directly to R2.
+
+## Local development
+
 ```bash
-# Just push to GitHub - auto-deploys!
-git add .
-git commit -m "Update features"
-git push
+npm run install:all
+cp backend/.env.example backend/.env   # point DATABASE_URL at a local Postgres or a Neon branch
+npm run seed
+npm run dev:backend    # http://localhost:8000
+npm run dev:frontend   # http://localhost:3000 (proxies /api to the backend)
 ```
 
----
+## Resources
 
-## 📚 Additional Resources
-
-- [Railway Documentation](https://docs.railway.app/)
-- [Render Documentation](https://render.com/docs)
-- [Vercel Documentation](https://vercel.com/docs)
-- [FastAPI Deployment](https://fastapi.tiangolo.com/deployment/)
-- [React Deployment](https://create-react-app.dev/docs/deployment/)
-
----
-
-## 🎉 You're Done!
-
-Your LMS is now live and accessible worldwide! 
-
-**Frontend**: https://your-app.vercel.app
-**Backend**: https://your-api.railway.app
-**Docs**: https://your-api.railway.app/docs
-
-Happy teaching! 🎓
+- [Express on Vercel](https://vercel.com/docs/frameworks/backend/express)
+- [Neon connection pooling](https://neon.tech/docs/connect/connection-pooling)
+- [R2 presigned URLs](https://developers.cloudflare.com/r2/api/s3/presigned-urls/)
+- [R2 CORS](https://developers.cloudflare.com/r2/buckets/cors/)

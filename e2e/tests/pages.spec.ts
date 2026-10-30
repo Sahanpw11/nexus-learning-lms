@@ -1,0 +1,109 @@
+import { expect, test, type Page } from '@playwright/test';
+
+type Role = 'admin' | 'teacher' | 'student';
+
+// The frontend still signs in with demo users (see AuthContext), so seed that session directly.
+const demoUsers: Record<Role, object> = {
+  admin: { id: 'admin_1', name: 'Admin User', email: 'admin@example.com', role: 'admin' },
+  teacher: { id: 'teacher_1', name: 'Dr. John Smith', email: 'teacher@example.com', role: 'teacher' },
+  student: { id: 'student_1', name: 'Alex Johnson', email: 'student@example.com', role: 'student' },
+};
+
+const routes = [
+  '/dashboard',
+  '/classes',
+  '/class/1',
+  '/assignments',
+  '/assignment/1',
+  '/calendar',
+  '/event-creator',
+  '/live-sessions',
+  '/schedule-session',
+  '/session/1',
+  '/session/2',
+  '/recording/1',
+  '/notes',
+  '/note/new',
+  '/note/1',
+  '/students',
+  '/add-student',
+  '/student/1',
+  '/users',
+  '/analytics',
+  '/analytics/class/1',
+  '/settings',
+  '/notifications',
+];
+
+async function signInAs(page: Page, role: Role) {
+  await page.addInitScript((user) => {
+    localStorage.setItem('user', JSON.stringify(user));
+    localStorage.setItem('token', 'mock_token');
+  }, demoUsers[role]);
+}
+
+for (const role of ['admin', 'teacher', 'student'] as const) {
+  test.describe(`${role} pages`, () => {
+    for (const route of routes) {
+      test(`${route} renders without errors`, async ({ page }) => {
+        const pageErrors: string[] = [];
+        page.on('pageerror', (error) => pageErrors.push(error.message));
+        await signInAs(page, role);
+
+        await page.goto(route);
+        await page.waitForLoadState('networkidle');
+        // Some detail pages simulate a fetch delay before rendering.
+        await page.waitForTimeout(1200);
+
+        await expect(page.getByText('Something went wrong')).toHaveCount(0);
+        await expect(page.locator('body')).not.toBeEmpty();
+        expect(pageErrors).toEqual([]);
+      });
+    }
+  });
+}
+
+test('sidebar navigation reaches each section', async ({ page }) => {
+  await signInAs(page, 'teacher');
+  await page.goto('/dashboard');
+  for (const href of ['/classes', '/assignments', '/calendar', '/live-sessions', '/notes', '/students', '/analytics', '/settings']) {
+    await page.locator(`nav a[href="${href}"]`).click();
+    await expect(page).toHaveURL(new RegExp(`${href}$`));
+  }
+});
+
+test('class detail opens from the classes list', async ({ page }) => {
+  await signInAs(page, 'teacher');
+  await page.goto('/classes');
+  await page.getByRole('button', { name: /enter class|manage class/i }).first().click();
+  await expect(page).toHaveURL(/\/class\/\d+$/);
+  await expect(page.getByText('Something went wrong')).toHaveCount(0);
+});
+
+test('note editor table button inserts a table', async ({ page }) => {
+  await signInAs(page, 'teacher');
+  await page.goto('/note/new');
+  const editor = page.locator('[contenteditable="true"]').first();
+  await editor.click();
+  await page.getByTitle('Insert Table').click();
+  await expect(editor.locator('table')).toHaveCount(1);
+  await expect(editor).not.toContainText('false');
+});
+
+test('demo login signs in and opens the dashboard', async ({ page }) => {
+  await signInAs(page, 'teacher');
+  await page.goto('/dashboard');
+  await page.evaluate(() => localStorage.clear());
+  await page.goto('/login');
+  await page.locator('input[name="email"]').fill('student@example.com');
+  await page.locator('input[name="password"]').fill('anything');
+  await page.locator('button[type="submit"]').click();
+  await expect(page).toHaveURL(/\/dashboard$/);
+});
+
+test('a visitor with no session is sent to the login page', async ({ page }) => {
+  await page.goto('/');
+  await expect(page).toHaveURL(/\/login$/);
+  await page.goto('/classes');
+  await expect(page).toHaveURL(/\/login$/);
+});

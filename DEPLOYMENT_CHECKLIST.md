@@ -8,7 +8,7 @@ Use this checklist to ensure successful deployment of Nexus Learning LMS.
 - [ ] All features tested locally
 - [ ] Environment variables documented
 - [ ] Database migrations tested
-- [ ] Requirements.txt is up to date
+- [ ] `backend/package-lock.json` is committed and `npm run build` passes
 - [ ] Package.json dependencies are correct
 - [ ] No hardcoded credentials in code
 - [ ] .gitignore configured properly
@@ -16,9 +16,9 @@ Use this checklist to ensure successful deployment of Nexus Learning LMS.
 
 ### Accounts Setup
 - [ ] GitHub account created
-- [ ] Railway/Render account created  
+- [ ] Neon account created
+- [ ] Cloudflare account with R2 enabled
 - [ ] Vercel account created
-- [ ] Firebase project created (optional)
 
 ## Deployment Steps
 
@@ -27,32 +27,28 @@ Use this checklist to ensure successful deployment of Nexus Learning LMS.
 - [ ] Repository is public or accessible
 - [ ] Branch structure organized (main branch)
 
-### 2. Backend Deployment (Railway/Render)
-- [ ] Service created and connected to GitHub
-- [ ] PostgreSQL database added
-- [ ] Environment variables configured:
+### 2. Vercel Deployment (one project, repository root)
+- [ ] Neon project created; pooled (`-pooler`) connection string copied
+- [ ] R2 bucket created (private), API token created, CORS policy allows the frontend origin
+- [ ] Vercel project created with the repository root as root directory
+- [ ] Environment variables configured (Production and Preview):
   - [ ] SECRET_KEY (strong, 32+ characters)
-  - [ ] Database credentials (auto-configured or manual)
-  - [ ] CORS_ORIGINS
-  - [ ] FRONTEND_URL
-- [ ] Build successful
+  - [ ] DATABASE_URL (Neon pooled URL)
+  - [ ] NODE_ENV=production
+  - [ ] R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET
+- [ ] Build successful (includes `npm run migrate`)
 - [ ] Health check endpoint working (/health)
-- [ ] API docs accessible (/docs)
+- [ ] Endpoint index accessible (/docs)
 
-### 3. Frontend Deployment (Vercel)
-- [ ] Project imported from GitHub
-- [ ] Root directory set to `frontend`
-- [ ] Build command configured: `npm run build`
-- [ ] Output directory set to `build`
-- [ ] Environment variables added:
-  - [ ] REACT_APP_API_URL (backend URL)
-- [ ] Build successful
+### 3. Frontend Check (same Vercel project)
+- [ ] `/api/health` returns healthy
+- [ ] Deep links (e.g. `/classes`) load the app after a refresh
 - [ ] Application loads correctly
 - [ ] No console errors
 
 ### 4. Database Setup
 - [ ] Database initialized
-- [ ] `setup_db.py` script executed
+- [ ] `npm run seed` executed in `backend/`
 - [ ] Admin user created
 - [ ] Sample users created (optional)
 - [ ] Database connection stable
@@ -84,7 +80,6 @@ Use this checklist to ensure successful deployment of Nexus Learning LMS.
 - [ ] User management works (add/edit/delete)
 
 ### File Operations
-- [ ] File uploads work (if Firebase configured)
 - [ ] File downloads work
 - [ ] Profile pictures upload (if implemented)
 
@@ -103,7 +98,7 @@ Use this checklist to ensure successful deployment of Nexus Learning LMS.
 - [ ] JWT tokens expire appropriately
 - [ ] HTTPS is enforced
 - [ ] CORS is properly configured
-- [ ] SQL injection protection (SQLAlchemy handles this)
+- [ ] SQL injection protection (all queries are parameterized)
 - [ ] Rate limiting configured (optional)
 
 ### Frontend Security
@@ -135,8 +130,10 @@ Use this checklist to ensure successful deployment of Nexus Learning LMS.
 
 ## Monitoring Setup
 
-### Railway/Render
-- [ ] Logs are accessible
+### Neon / R2
+- [ ] Neon usage and connection count monitored
+- [ ] R2 storage usage monitored
+- [ ] Vercel function logs are accessible
 - [ ] Error tracking configured
 - [ ] Uptime monitoring enabled
 - [ ] Resource usage monitored
@@ -196,8 +193,8 @@ Use this checklist to ensure successful deployment of Nexus Learning LMS.
 
 **Production:**
 - Frontend: https://your-app.vercel.app
-- Backend: https://your-api.railway.app
-- API Docs: https://your-api.railway.app/docs
+- API: https://your-app.vercel.app/api
+- Endpoint index: https://your-app.vercel.app/api/docs
 
 **Credentials:**
 - Admin: admin@reactorminds.com / admin123
@@ -209,9 +206,8 @@ Use this checklist to ensure successful deployment of Nexus Learning LMS.
 1. Change default passwords
 2. Create real user accounts
 3. Add real class data
-4. Configure Firebase for file uploads
-5. Set up custom domain (optional)
-6. Enable monitoring and alerts
+4. Set up custom domain (optional)
+5. Enable monitoring and alerts
 7. Schedule regular backups
 
 ---
